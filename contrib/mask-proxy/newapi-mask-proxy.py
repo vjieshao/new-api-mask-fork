@@ -112,7 +112,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def _mask_user_response(self, resp_body, resp_headers):
         path = self.path.split("?", 1)[0]
         is_log_path = path.startswith("/api/log/self")
-        if path not in {"/api/user/self", "/api/user/self/groups", "/api/user/models"} and not is_log_path:
+        is_token_path = path.startswith("/api/token")
+        if path not in {"/api/user/self", "/api/user/self/groups", "/api/user/models"} and not is_log_path and not is_token_path:
             return resp_body, False
         try:
             encoded = dict((k.lower(), v) for k, v in resp_headers).get("content-encoding", "")
@@ -125,6 +126,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
             if is_log_path:
                 if self._strip_rate_fields(payload, keep_group=True, force_rate_one=False):
+                    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), True
+                return resp_body, False
+
+            if is_token_path:
+                if self._mask_group_fields(payload):
                     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), True
                 return resp_body, False
 
@@ -176,6 +182,20 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         value[idx] = cleaned
                         changed = True
                 changed = self._strip_rate_fields(value[idx], keep_group=keep_group, force_rate_one=force_rate_one) or changed
+        return changed
+
+    def _mask_group_fields(self, value):
+        changed = False
+        if isinstance(value, dict):
+            for key in list(value.keys()):
+                if key.lower() in {"group", "using_group", "token_group"}:
+                    value[key] = "default"
+                    changed = True
+                else:
+                    changed = self._mask_group_fields(value[key]) or changed
+        elif isinstance(value, list):
+            for item in value:
+                changed = self._mask_group_fields(item) or changed
         return changed
 
     def _clean_rate_text(self, value, force_rate_one=False, remove_rate=False):
