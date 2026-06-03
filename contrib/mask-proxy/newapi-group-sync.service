@@ -1,0 +1,13 @@
+[Unit]
+Description=New API token group sync
+After=docker.service newapi-mask-proxy.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /root/newapi-group-sync.py
+Restart=always
+RestartSec=2
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -15,8 +15,11 @@ Lightweight local reverse proxy for New API. It keeps real user groups and billi
 ```bash
 cp newapi-mask-proxy.py /root/newapi-mask-proxy.py
 cp newapi-mask-proxy.service /etc/systemd/system/newapi-mask-proxy.service
+cp newapi-group-sync.py /root/newapi-group-sync.py
+cp newapi-group-sync.service /etc/systemd/system/newapi-group-sync.service
 systemctl daemon-reload
 systemctl enable --now newapi-mask-proxy.service
+systemctl enable --now newapi-group-sync.service
 ```
 
 Point Nginx for New API to the proxy:
@@ -26,3 +29,5 @@ proxy_pass http://127.0.0.1:3002;
 ```
 
 The upstream New API service remains on `127.0.0.1:3001`.
+
+`newapi-group-sync.service` keeps existing token groups synchronized with the user group selected by the administrator, so a user-group change takes effect for existing API keys without SQLite triggers.
