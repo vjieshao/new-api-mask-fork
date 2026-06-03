@@ -1,0 +1,13 @@
+[Unit]
+Description=New API user group display mask proxy
+After=network.target docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /root/newapi-mask-proxy.py
+Restart=always
+RestartSec=2
+User=root
+
+[Install]
+WantedBy=multi-user.target
