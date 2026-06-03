@@ -11,6 +11,14 @@ def sync_once():
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.execute("pragma busy_timeout=10000")
+        groups = [
+            row[0]
+            for row in conn.execute(
+                "select distinct [group] from users where coalesce([group], '') <> ''"
+            )
+        ]
+
+        # Existing API keys should always use the group currently selected by admin.
         conn.execute(
             """
             update tokens
@@ -23,6 +31,29 @@ def sync_once():
              )
             """
         )
+
+        # Channels may be assigned to default-like visible groups only. Ensure every
+        # real user group can route through the same enabled channel abilities.
+        for group in groups:
+            conn.execute(
+                """
+                update channels
+                   set [group] = [group] || ',' || ?
+                 where coalesce([group], '') <> ''
+                   and (',' || [group] || ',') not like '%,' || ? || ',%'
+                   and status = 1
+                """,
+                (group, group),
+            )
+            conn.execute(
+                """
+                insert or ignore into abilities([group], model, channel_id, enabled, priority, weight, tag)
+                select ?, model, channel_id, enabled, priority, weight, tag
+                  from abilities
+                 where [group] in ('default', 'default1')
+                """,
+                (group,),
+            )
         conn.commit()
     finally:
         conn.close()
